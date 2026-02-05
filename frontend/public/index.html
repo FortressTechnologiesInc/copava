@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Available Nurse Staffing Inc.</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="/styles.css" />
+</head>
+<body>
+  <header class="header">
+    <h1>Available Nurse Staffing Inc.</h1>
+    <p>Toronto-based Healthcare Staffing Services</p>
+    <p class="address">
+      1511-340 Mill Road, Toronto, ON • 281-509-1929
+    </p>
+  </header>
+
+  <nav class="tab-bar">
+    <button class="tab-button active" data-tab="about">About Us</button>
+    <button class="tab-button" data-tab="careers">Careers</button>
+    <button class="tab-button" data-tab="contact">Contact Us</button>
+    <button class="tab-button" data-tab="apply">Apply Here</button>
+  </nav>
+
+  <main>
+    <!-- About Us -->
+    <section id="about" class="tab-content active">
+      <h2>About Us</h2>
+      <p>
+        Available Nurse Staffing Inc. is a Toronto-based healthcare staffing agency
+        connecting Registered Nurses (RN), Registered Practical Nurses (RPN),
+        Personal Support Workers (PSW), and other healthcare professionals
+        with hospitals, long-term care homes, and community facilities across
+        the Greater Toronto Area.
+      </p>
+      <p>
+        We focus on reliability, professionalism, and compassionate care—ensuring
+        that facilities are staffed with qualified professionals when they need
+        them most.
+      </p>
+    </section>
+
+    <!-- Careers -->
+    <section id="careers" class="tab-content">
+      <h2>Careers</h2>
+      <p>
+        We are always looking for:
+      </p>
+      <ul>
+        <li><strong>Registered Nurses (RN)</strong></li>
+        <li><strong>Registered Practical Nurses (RPN)</strong></li>
+        <li><strong>Personal Support Workers (PSW)</strong></li>
+        <li><strong>Other Healthcare Professionals</strong> (e.g., therapists, technicians)</li>
+      </ul>
+      <p>
+        Flexible shifts, competitive compensation, and opportunities across Toronto and the GTA.
+      </p>
+      <p>
+        To apply, use the <strong>Apply Here</strong> tab and upload your resume.
+      </p>
+    </section>
+
+    <!-- Contact Us -->
+    <section id="contact" class="tab-content">
+      <h2>Contact Us</h2>
+      <form id="contactForm">
+        <label>
+          Full Name
+          <input type="text" name="name" required />
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" required />
+        </label>
+        <label>
+          Phone
+          <input type="tel" name="phone" />
+        </label>
+        <label>
+          Message
+          <textarea name="message" rows="4" required></textarea>
+        </label>
+        <button type="submit">Send Message</button>
+        <p id="contactStatus" class="status"></p>
+      </form>
+    </section>
+
+    <!-- Apply Here -->
+    <section id="apply" class="tab-content">
+      <h2>Apply Here</h2>
+      <form id="applyForm" enctype="multipart/form-data">
+        <label>
+          Full Name
+          <input type="text" name="name" required />
+        </label>
+        <label>
+          Email
+          <input type="email" name="email" required />
+        </label>
+        <label>
+          Phone
+          <input type="tel" name="phone" />
+        </label>
+        <label>
+          Position
+          <select name="position" required>
+            <option value="">Select a role</option>
+            <option value="RN">Registered Nurse (RN)</option>
+            <option value="RPN">Registered Practical Nurse (RPN)</option>
+            <option value="PSW">Personal Support Worker (PSW)</option>
+            <option value="Other">Other Healthcare Worker</option>
+          </select>
+        </label>
+        <label>
+          Upload Resume (PDF or DOC)
+          <input type="file" name="resume" accept=".pdf,.doc,.docx" required />
+        </label>
+        <button type="submit">Submit Application</button>
+        <p id="applyStatus" class="status"></p>
+      </form>
+    </section>
+  </main>
+
+  <script>
+    // Tab switching
+    const tabButtons = document.querySelectorAll('.tab-button');
+    const tabContents = document.querySelectorAll('.tab-content');
+
+    tabButtons.forEach(btn => {
+      btn.addEventListener('click', () => {
+        tabButtons.forEach(b => b.classList.remove('active'));
+        tabContents.forEach(c => c.classList.remove('active'));
+
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    // Contact form submit
+    const contactForm = document.getElementById('contactForm');
+    const contactStatus = document.getElementById('contactStatus');
+
+    contactForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      contactStatus.textContent = 'Sending...';
+
+      const formData = new FormData(contactForm);
+      const payload = Object.fromEntries(formData.entries());
+
+      try {
+        const res = await fetch('/api/contact', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+        const data = await res.json();
+        contactStatus.textContent = data.message || 'Message sent.';
+        contactForm.reset();
+      } catch (err) {
+        contactStatus.textContent = 'Error sending message. Please try again.';
+      }
+    });
+
+    // Apply form submit
+    const applyForm = document.getElementById('applyForm');
+    const applyStatus = document.getElementById('applyStatus');
+
+    applyForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      applyStatus.textContent = 'Submitting...';
+
+      const formData = new FormData(applyForm);
+
+      try {
+        const res = await fetch('/api/apply', {
+          method: 'POST',
+          body: formData,
+        });
+        const data = await res.json();
+        applyStatus.textContent = data.message || 'Application submitted.';
+        applyForm.reset();
+      } catch (err) {
+        applyStatus.textContent = 'Error submitting application. Please try again.';
+      }
+    });
+  </script>
+</body>
+</html>
