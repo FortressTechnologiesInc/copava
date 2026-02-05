@@ -1,0 +1,60 @@
+version: "3.9"
+
+services:
+  mysql:
+    image: mysql:8.0
+    container_name: ans-mysql
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: root_password
+      MYSQL_DATABASE: ans_db
+      MYSQL_USER: ans_user
+      MYSQL_PASSWORD: ans_password
+    volumes:
+      - mysql_data:/var/lib/mysql
+    ports:
+      - "3306:3306"
+
+  backend:
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    container_name: ans-backend
+    restart: always
+    depends_on:
+      - mysql
+    environment:
+      PORT: 8080
+      MYSQL_HOST: mysql
+      MYSQL_PORT: 3306
+      MYSQL_USER: ans_user
+      MYSQL_PASSWORD: ans_password
+      MYSQL_DATABASE: ans_db
+
+      EMAIL_HOST: smtp.office365.com
+      EMAIL_PORT: 587
+      EMAIL_SECURE: "false"
+      EMAIL_USER: availablenursestaffing@outlook.com
+      EMAIL_PASS: your_outlook_password_or_app_password
+      EMAIL_TO: availablenursestaffing@outlook.com
+
+      UPLOAD_DIR: /uploads
+    volumes:
+      - uploads:/uploads
+    ports:
+      - "8080:8080"
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: ans-frontend
+    restart: always
+    depends_on:
+      - backend
+    ports:
+      - "80:80"
+
+volumes:
+  mysql_data:
+  uploads:
