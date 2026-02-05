@@ -1,0 +1,207 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: dev
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: ans-secrets
+  namespace: dev
+type: Opaque
+data:
+  mysql-root-password: cm9vdF9wYXNzd29yZA==        # base64 of: root_password
+  mysql-user-password: YW5zX3Bhc3N3b3Jk            # base64 of: ans_password
+  email-user: YXZhaWxhYmxlbnVyc2VzdGFmZmluZ0BvdXRsb29rLmNvbQ==  # base64 of: availablenursestaffing@outlook.com
+  email-pass: eW91cl9vdXRsb29rX3Bhc3M=            # base64 of: your_outlook_password_or_app_password
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: mysql-pvc
+  namespace: dev
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 5Gi
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: uploads-pvc
+  namespace: dev
+spec:
+  accessModes: ["ReadWriteOnce"]
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ans-mysql
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ans-mysql
+  template:
+    metadata:
+      labels:
+        app: ans-mysql
+    spec:
+      containers:
+        - name: mysql
+          image: mysql:8.0
+          env:
+            - name: MYSQL_ROOT_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ans-secrets
+                  key: mysql-root-password
+            - name: MYSQL_DATABASE
+              value: ans_db
+            - name: MYSQL_USER
+              value: ans_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ans-secrets
+                  key: mysql-user-password
+          ports:
+            - containerPort: 3306
+          volumeMounts:
+            - name: mysql-storage
+              mountPath: /var/lib/mysql
+      volumes:
+        - name: mysql-storage
+          persistentVolumeClaim:
+            claimName: mysql-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ans-mysql
+  namespace: dev
+spec:
+  selector:
+    app: ans-mysql
+  ports:
+    - port: 3306
+      targetPort: 3306
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ans-backend
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ans-backend
+  template:
+    metadata:
+      labels:
+        app: ans-backend
+    spec:
+      containers:
+        - name: ans-backend
+          image: iscanprint/backend:1.0
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: MYSQL_HOST
+              value: ans-mysql
+            - name: MYSQL_PORT
+              value: "3306"
+            - name: MYSQL_USER
+              value: ans_user
+            - name: MYSQL_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: ans-secrets
+                  key: mysql-user-password
+            - name: MYSQL_DATABASE
+              value: ans_db
+            - name: EMAIL_HOST
+              value: smtp.office365.com
+            - name: EMAIL_PORT
+              value: "587"
+            - name: EMAIL_SECURE
+              value: "false"
+            - name: EMAIL_USER
+              valueFrom:
+                secretKeyRef:
+                  name: ans-secrets
+                  key: email-user
+            - name: EMAIL_PASS
+              valueFrom:
+                secretKeyRef:
+                  name: ans-secrets
+                  key: email-pass
+            - name: EMAIL_TO
+              value: availablenursestaffing@outlook.com
+            - name: UPLOAD_DIR
+              value: /uploads
+          volumeMounts:
+            - name: uploads
+              mountPath: /uploads
+      volumes:
+        - name: uploads
+          persistentVolumeClaim:
+            claimName: uploads-pvc
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ans-backend
+  namespace: dev
+spec:
+  selector:
+    app: ans-backend
+  ports:
+    - port: 8080
+      targetPort: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ans-frontend
+  namespace: dev
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: ans-frontend
+  template:
+    metadata:
+      labels:
+        app: ans-frontend
+    spec:
+      containers:
+        - name: ans-frontend
+          image: iscanprint/frontend:1.0  
+          ports:
+            - containerPort: 80
+          env:
+            # Optional: if you want the frontend to call backend via cluster DNS
+            - name: VITE_API_BASE_URL
+              value: "http://ans-backend.ans.svc.cluster.local:8080"
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ans-frontend-lb
+  namespace: dev
+spec:
+  type: LoadBalancer
+  selector:
+    app: ans-frontend
+  ports:
+    - port: 80
+      targetPort: 80
